@@ -6,8 +6,8 @@ const { join } = require("path");
 const { Sequelize } = require("sequelize");
 const { Server } = require("socket.io");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
-const Chatbot = require("./bot");
-const User = require("./user.order");
+const Chatbot = require("./src/bot");
+const User = require("./src/user.order");
 
 const app = express();
 dotenv.config();
@@ -16,7 +16,7 @@ const server = createServer(app);
 
 const io = new Server(server);
 
-app.use(express.static(join(__dirname, "../public")));
+app.use(express.static(join(__dirname, "public")));
 
 // Sequelize setup
 const sequelize = new Sequelize({
