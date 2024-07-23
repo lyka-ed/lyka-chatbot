@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Restaurant Chatbot" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="./style.css" />
+    <title>Ly's Ristorante</title>
+  </head>
+  <body>
+    <h1>Ly's Ristorante</h1>
+    <button class="chat-icon" id="chatIcon">
+      <i class="fa-solid fa-comment-dots fa-2xl"></i>
+    </button>
+
+    <div id="chatContainer" class="container" style="display: none">
+      <div class="header">
+        <div class="heading">
+          <img src="./assets/food1.jpg" alt="Chef" />
+          <p>Lyka</p>
+          <span></span>
+        </div>
+        <div class="icons">
+          <button id="minimizeButton">
+            <i class="fa-solid fa-angle-down fa-xl"></i>
+          </button>
+          <button id="logoutButton">
+            <i class="fa-solid fa-xmark fa-xl"></i>
+          </button>
+        </div>
+      </div>
+      <div id="chat">
+        <ul id="messages"></ul>
+      </div>
+      <form id="chatForm" action="">
+        <input
+          id="input"
+          type="text"
+          autocomplete="off"
+          placeholder="Type your message here..."
+        />
+        <button id="sendButton" aria-label="Send">
+          <i class="fa-solid fa-paper-plane fa-lg"></i>
+        </button>
+      </form>
+      <div id="loginContainer" style="display: flex">
+        <h6>Hi, I am Lyka</h6>
+        <p>Please sign in with your username</p>
+        <input id="usernameInput" type="text" placeholder="Enter Username" />
+        <button id="signinButton" aria-label="Sign in">Sign-in</button>
+      </div>
+    </div>
+
+    <script
+      src="https://kit.fontawesome.com/7926b5ab8d.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
