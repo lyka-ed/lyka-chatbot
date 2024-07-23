@@ -43,7 +43,7 @@ class Chatbot {
 
   generateMenuList() {
     return this.menu
-      .map((item, index) => `${index + 10}. ${item.name} - ${item.price}<br/>`)
+      .map((item, index) => `${index + 21}. ${item.name} - ${item.price}<br/>`)
       .join("");
   }
 

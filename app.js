@@ -9,16 +9,13 @@ const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const Chatbot = require("./src/bot");
 const User = require("./src/user.order");
 
-// Create Express app and HTTP server
 const app = express();
 dotenv.config();
 const PORT = process.env.PORT;
 const server = createServer(app);
 
-// Create Socket.io instance
 const io = new Server(server);
 
-// Serve static files from the 'public' directory
 app.use(express.static(join(__dirname, "public")));
 
 // Sequelize setup
@@ -28,7 +25,6 @@ const sequelize = new Sequelize({
   logging: false,
 });
 
-// Session store configuration using Sequelize
 const sessionStore = new SequelizeStore({
   db: sequelize,
 });
