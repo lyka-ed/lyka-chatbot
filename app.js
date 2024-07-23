@@ -31,7 +31,7 @@ const sessionStore = new SequelizeStore({
 
 // Session middleware configuration
 const sessionMiddleware = session({
-  secret: "abiggirl",
+  secret: process.env.SECRET,
   store: sessionStore,
   resave: false,
   saveUninitialized: true,
