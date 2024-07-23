@@ -1,179 +1,109 @@
 const express = require("express");
-const { createServer, request } = require("http");
-const { join, parse } = require("path");
+const dotenv = require("dotenv");
+const session = require("express-session");
+const { createServer } = require("http");
+const { join } = require("path");
+const { Sequelize } = require("sequelize");
 const { Server } = require("socket.io");
-const { v4: uuidv4 } = require("uuid");
+const SequelizeStore = require("connect-session-sequelize")(session.Store);
+const Chatbot = require("./bot");
+const User = require("./user.order");
 
 const app = express();
+dotenv.config();
+const PORT = process.env.PORT;
 const server = createServer(app);
 
 const io = new Server(server);
 
-// Serve the static files
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(__dirname, "../public")));
 
-// Initialise an empty users object
-const users = {};
-// Will contain objects of user with key value pairs of { sessionId: {currentstate, currentOrder, History}}
+// Sequelize setup
+const sequelize = new Sequelize({
+  dialect: "sqlite",
+  storage: "./database.sqlite",
+  logging: false,
+});
 
-// Menu list
-const menu = [
-  { name: "Afang soup", price: 2500 },
-  { name: "White soup", price: 2500 },
-  { name: " Edikan Ikong soup", price: 2500 },
-  { name: " Okro soup", price: 1500 },
-];
+const sessionStore = new SequelizeStore({
+  db: sequelize,
+});
 
-// Initial message options
-const initialMessage = `Select an option:\n
-1. Place an order
-99. Checkout order
-98. See order history
-97. See current order
-0. Cancel order`;
+// Session middleware configuration
+const sessionMiddleware = session({
+  secret: process.env.SECRET,
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }, // 1 day
+});
 
-// Message sending helper function
-const sendMessage = (sessionId, message) => {
-  io.to(sessionId).emit("message", message);
-};
+// Session middleware to Express app
+app.use(sessionMiddleware);
 
-const handleUserInput = (sessionId, input) => {
-  if (!users[sessionId]) {
-    users[sessionId] = {
-      currentOrder: [],
-      orderHistory: [],
-      currentState: "initial",
-    };
-  }
+sessionStore.sync();
 
-  const user = users[sessionId];
-  const currentOrder = user.currentOrder;
+// Session middleware to Socket.io
+io.engine.use(sessionMiddleware);
 
-  switch (user.currentState) {
-    case "initial":
-      switch (input) {
-        case "1":
-          user.currentState = "ordering";
-          let menuList = menu
-            .map(
-              (item, index) => `${index + 21}. ${item.name} - ${item.price}\n`
-            )
-            .join("");
-          console.log(menuList);
+// Initialize B instance with Socket.io
+const chatbot = new Chatbot(io);
 
-          sendMessage(sessionId, menuList);
-          break;
-        case "99":
-          if (currentOrder.length > 0) {
-            user.orderHistory.push(...currentOrder);
-            user.currentOrder = [];
-            sendMessage(sessionId, `Order placed successfully.`);
-          } else {
-            sendMessage(sessionId, "No order to place.");
-          }
-          break;
-        case "98":
-          sendMessage(
-            sessionId,
-            `Order history:\n${
-              user.orderHistory.map((item) => item.name).join(", ") ||
-              "No order history."
-            }`
-          );
-
-          break;
-        case "97":
-          sendMessage(
-            sessionId,
-            `Current order:\n${
-              currentOrder.map((item) => item.name).join(", ") ||
-              "No current order."
-            }`
-          );
-
-          break;
-        case "0":
-          if (user.currentOrder.length > 0) {
-            user.currentOrder = [];
-            user.currentState = "initial";
-            sendMessage(sessionId, "Order canceled.");
-          } else {
-            sendMessage(sessionId, "No order to cancel.");
-          }
-          break;
-        default:
-          sendMessage(sessionId, "Invalid option selected");
-      }
-      break;
-
-    case "ordering":
-      const menuIndex = parseInt(input) - 21;
-      if (menuIndex >= 0 && menuIndex < menu.length) {
-        currentOrder.push(menu[menuIndex]);
-        // console.log(menu[menuIndex]);
-        sendMessage(sessionId, `${menu[menuIndex].name} added to your order.`);
-        sendMessage(sessionId, `Select 99 to place the order, 0 to cancel.`);
-      } else if (input === "99") {
-        if (currentOrder.length > 0) {
-          user.orderHistory.push(...currentOrder);
-          user.currentOrder = [];
-          user.currentState = "initial";
-          sendMessage(sessionId, `Order placed successfully.`);
-        } else {
-          sendMessage(sessionId, "No order to cancel.");
-        }
-      } else if (input === "0") {
-        if (user.currentOrder.length > 0) {
-          user.currentOrder = [];
-          user.currentState = "initial";
-          sendMessage(sessionId, "Order canceled.");
-        } else {
-          sendMessage(sessionId, "Order canceled.");
-        }
-      } else {
-        sendMessage(sessionId, "Invalid option. Kindly select a valid option.");
-      }
-      break;
-
-    default:
-      //   console.log('This is correct ', user.currentState === 'initial');
-      sendMessage(sessionId, `${sessionId} Wrong spot`);
-      user.currentState = "initial";
-      break;
-  }
-};
-
+// Handle Socket.io connections
 io.on("connection", (socket) => {
-  const sessionId = uuidv4();
+  const reqSession = socket.request.session;
+  const sessionId = reqSession.id;
   socket.join(sessionId);
-  users[sessionId] = {
-    currentOrder: [],
-    orderHistory: [],
-    currentState: "initial",
-  };
 
-  // socket.emit('message', initialMessage);
-  // sendMessage(sessionId, initialMessage);
+  if (reqSession.user) {
+    const user = User.getUser(reqSession.user);
+    chatbot.sendMessage(user, `Welcome Back ${user.username}!`);
+    chatbot.sendMessage(user, chatbot.initialMessage);
+  } else {
+    socket.emit("error");
+  }
 
-  socket.on("userInput", (input) => {
-    console.log("User input on the server: " + input);
-
-    if (input === "start") {
-      sendMessage(sessionId, initialMessage);
-    } else {
-      handleUserInput(sessionId, input);
+  // Handle 'username' event from the client
+  socket.on("username", (username) => {
+    if (!reqSession.users) {
+      reqSession.users = {};
     }
 
-    // socket.emit('message', input);
-    console.log(users[sessionId]);
+    const userId = User.generateKey(username, sessionId);
+    let user;
+
+    if (!reqSession.users[userId]) {
+      user = new User(username, sessionId);
+      reqSession.users[userId] = user;
+      chatbot.sendMessage(user, `Welcome to Ly's Ristorante, ${username}!`);
+    } else {
+      user = User.getUser(reqSession.user);
+      chatbot.sendMessage(
+        reqSession.users[userId],
+        `Welcome Back ${username}!`
+      );
+    }
+
+    reqSession.user = user;
+    chatbot.sendMessage(user, chatbot.initialMessage);
+    reqSession.save();
+  });
+
+  socket.on("userInput", (input) => {
+    if (reqSession.user) {
+      chatbot.handleUserInput(reqSession, input);
+    } else {
+      socket.emit("error", "Session not found");
+    }
+
+    reqSession.save();
   });
 });
 
 app.get("/", (req, res) => {
-  //   res.send('Hello World');
-  res.sendFile(join(__dirname, "../public/index.html"));
+  res.sendFile(join(__dirname, "public/index.html"));
 });
 
-server.listen(3000, () => {
-  console.log("Server is running on http://localhost:3000");
+server.listen(PORT, () => {
+  console.log(`The Restarant Bot is running at localhost ${PORT} `);
 });
