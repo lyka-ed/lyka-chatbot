@@ -2,7 +2,7 @@
 
 ### A restaurant chatbot that will assist customers in placing orders for their preferred meals.
 
-### Requirements
+### Requirement
 
 - Allow customer to place an order.
 - Allow customer to checkout order.
